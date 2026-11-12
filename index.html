@@ -58,7 +58,14 @@
   .invalid { border-color: var(--error) !important; }
   .msg { color: var(--error); font-size: 12px; min-height: 16px; margin-top: 4px; }
 
-  .companions { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 20px; background: rgba(255,255,255,.4); border: 1px solid #CCD7C6; border-radius: 16px; margin-bottom: 28px; border-inline: 1px solid #CCD7C6; }
+  [hidden] { display: none !important; }
+  .companions { padding: 20px; background: rgba(255,255,255,.4); border: 1px solid #CCD7C6; border-radius: 16px; margin-bottom: 28px; }
+  .comp-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .comp-fields { margin-top: 20px; padding-top: 20px; border-top: 1px solid #CCD7C6; }
+  .comp-fields .row { margin-bottom: 0; }
+  .comp-range { margin-top: 20px; }
+  .comp-range fieldset { margin: 0; }
+  .chip small { font-size: 12px; opacity: .75; align-self: center; }
   .seg { display: flex; padding: 4px; background: #DFE7DA; border-radius: 999px; }
   .seg input { position: absolute; opacity: 0; pointer-events: none; }
   .seg label { padding: 8px 24px; border-radius: 999px; color: var(--muted); font-size: 16px; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; font-weight: 400; line-height: 24px; transition: background .2s, color .2s; }
@@ -92,7 +99,7 @@
     .page { padding: 16px 20px; }
     header { padding-bottom: 28px; }
     .field.narrow { flex-basis: 100%; }
-    .companions { flex-direction: column; align-items: flex-start; }
+    .comp-head { flex-direction: column; align-items: flex-start; }
   }
 </style>
 </head>
@@ -147,13 +154,43 @@
           </div>
         </div>
 
-        <div class="companions" role="radiogroup" aria-labelledby="acomp-label">
-          <span id="acomp-label" style="font-size:13px;font-weight:600;color:var(--ink-2)">¿Viajas con acompañantes?</span>
-          <div class="seg">
-            <input type="radio" name="acompanantes" id="acomp-no" value="no" checked>
-            <label for="acomp-no">No</label>
-            <input type="radio" name="acompanantes" id="acomp-si" value="si">
-            <label for="acomp-si">Sí</label>
+        <div class="companions">
+          <div class="comp-head" role="radiogroup" aria-labelledby="acomp-label">
+            <span id="acomp-label" style="font-size:13px;font-weight:600;color:var(--ink-2)">¿Viajas con acompañantes?</span>
+            <div class="seg">
+              <input type="radio" name="acompanantes" id="acomp-no" value="no" checked>
+              <label for="acomp-no">No</label>
+              <input type="radio" name="acompanantes" id="acomp-si" value="si">
+              <label for="acomp-si">Sí</label>
+            </div>
+          </div>
+
+          <div class="comp-fields" id="acomp-fields" hidden>
+            <div class="row">
+              <div class="field">
+                <label class="lbl" for="total">¿Cuántos son en total?</label>
+                <input type="number" id="total" name="total" value="2" min="2" max="50" inputmode="numeric">
+                <div class="msg" data-for="total"></div>
+              </div>
+              <div class="field">
+                <label class="lbl" for="menores">¿Cuántos son menores?</label>
+                <input type="number" id="menores" name="menores" value="0" min="0" max="49" inputmode="numeric">
+                <div class="msg" data-for="menores"></div>
+              </div>
+            </div>
+
+            <div class="comp-range" id="rango-menores" hidden>
+              <fieldset>
+                <legend>Rango de edad entre los menores</legend>
+                <div class="chips">
+                  <div class="chip"><input type="checkbox" id="r1" name="rango" value="bebes"><label for="r1">Bebés <small>0 meses a 2 años</small></label></div>
+                  <div class="chip"><input type="checkbox" id="r2" name="rango" value="preadolescentes"><label for="r2">Preadolescentes <small>3 a 12 años</small></label></div>
+                  <div class="chip"><input type="checkbox" id="r3" name="rango" value="adolescentes"><label for="r3">Adolescentes <small>13 a 17 años</small></label></div>
+                </div>
+                <p class="hint">Elige todos los rangos que apliquen.</p>
+                <div class="msg" data-for="rango"></div>
+              </fieldset>
+            </div>
           </div>
         </div>
 
@@ -197,6 +234,22 @@
   const intro = document.getElementById('intro');
   const done = document.getElementById('done');
 
+  // Acompañantes: mostrar campos al elegir SÍ, y rango de edad si hay menores
+  const acompFields = document.getElementById('acomp-fields');
+  const rangoBox = document.getElementById('rango-menores');
+  const menoresIn = form.elements['menores'];
+  const syncMinors = () => {
+    const n = parseInt(menoresIn.value, 10) || 0;
+    rangoBox.hidden = n < 1;
+    if (n < 1) form.querySelectorAll('input[name="rango"]').forEach(c => c.checked = false);
+  };
+  const syncCompanions = () => {
+    acompFields.hidden = form.elements['acompanantes'].value !== 'si';
+    syncMinors();
+  };
+  form.querySelectorAll('input[name="acompanantes"]').forEach(r => r.addEventListener('change', syncCompanions));
+  menoresIn.addEventListener('input', syncMinors);
+
   const setError = (name, text) => {
     const msg = form.querySelector(`.msg[data-for="${name}"]`);
     const input = form.elements[name];
@@ -218,9 +271,17 @@
     setError('edad', !edad || (edad >= 1 && edad <= 120) ? '' : 'Ingresa una edad válida.');
     setError('intereses', intereses.length ? '' : 'Elige al menos una opción.');
 
-    const first = form.querySelector('.invalid, .msg:not(:empty)');
-    if (first && form.querySelector('.msg:not(:empty)')) {
-      const target = form.querySelector('.invalid') || form.querySelector('.chip input');
+    const conAcomp = d.get('acompanantes') === 'si';
+    const total = parseInt(d.get('total'), 10);
+    const menores = parseInt(d.get('menores'), 10) || 0;
+    const rangos = d.getAll('rango');
+    setError('total', !conAcomp || total >= 2 ? '' : 'Indica cuántas personas viajan (mínimo 2).');
+    setError('menores', !conAcomp || (menores >= 0 && (!total || menores < total)) ? '' : 'Debe haber al menos un adulto: los menores deben ser menos que el total.');
+    setError('rango', conAcomp && menores > 0 && !rangos.length ? 'Elige al menos un rango de edad.' : '');
+
+    const bad = form.querySelector('.msg:not(:empty)');
+    if (bad) {
+      const target = form.querySelector('.invalid') || bad.closest('fieldset, .field').querySelector('input');
       target.focus();
       return;
     }
@@ -229,6 +290,9 @@
     const datos = {
       nombre, edad, origen: d.get('origen'), correo,
       acompanantes: d.get('acompanantes'),
+      total: conAcomp ? total : 1,
+      menores: conAcomp ? menores : 0,
+      rangosMenores: conAcomp ? rangos : [],
       intereses, newsletter: !!d.get('consent')
     };
     console.log('Datos del formulario:', datos);
@@ -242,6 +306,7 @@
 
   document.getElementById('reset').addEventListener('click', () => {
     form.reset();
+    syncCompanions();
     done.style.display = 'none';
     intro.style.display = 'block';
   });
