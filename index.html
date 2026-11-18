@@ -230,6 +230,7 @@
 </div>
 
 <script>
+  const RUTA_URL = 'ruta.html'; // página de la ruta (misma carpeta)
   const form = document.getElementById('form');
   const intro = document.getElementById('intro');
   const done = document.getElementById('done');
@@ -286,7 +287,6 @@
       return;
     }
 
-    // Aquí tienes todos los datos. Sustituye el console.log por tu fetch() a tu backend.
     const datos = {
       nombre, edad, origen: d.get('origen'), correo,
       acompanantes: d.get('acompanantes'),
@@ -295,13 +295,20 @@
       rangosMenores: conAcomp ? rangos : [],
       intereses, newsletter: !!d.get('consent')
     };
-    console.log('Datos del formulario:', datos);
+    // Si tienes backend, envía aquí `datos` con fetch() antes de redirigir.
 
-    document.getElementById('done-name').textContent = nombre.split(' ')[0];
-    document.getElementById('done-text').textContent =
-      'Estamos preparando tu guía con ' + intereses.length + (intereses.length === 1 ? ' interés' : ' intereses') + '.';
-    intro.style.display = 'none';
-    done.style.display = 'block';
+    // Guarda el perfil para la página de la ruta y salta a ella.
+    const etiquetas = {
+      vinas: 'viñas y degustaciones', gastronomia: 'gastronomía', naturaleza: 'naturaleza',
+      cultura: 'cultura local', familia: 'actividades familiares', ciclismo: 'ciclismo'
+    };
+    try {
+      localStorage.setItem('casablanca-perfil', JSON.stringify({
+        ...datos,
+        intereses: intereses.map(v => etiquetas[v] || v).join(', ')
+      }));
+    } catch (err) { /* si el navegador bloquea el almacenamiento, la ruta se abre igual */ }
+    window.location.href = RUTA_URL;
   });
 
   document.getElementById('reset').addEventListener('click', () => {
